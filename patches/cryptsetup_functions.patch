@@ -1,34 +1,39 @@
 --- patched/cryptsetup_functions.orig	2023-03-31 12:42:39.752554806 +0200
 +++ patched/cryptsetup_functions	2023-03-31 12:42:39.756554722 +0200
-@@ -86,7 +86,8 @@ crypttab_parse_options() {
+@@ -86,7 +86,9 @@ crypttab_parse_options() {
               CRYPTTAB_OPTION_same_cpu_crypt \
               CRYPTTAB_OPTION_submit_from_crypt_cpus \
               CRYPTTAB_OPTION_no_read_workqueue \
 -             CRYPTTAB_OPTION_no_write_workqueue
 +             CRYPTTAB_OPTION_no_write_workqueue \
-+             CRYPTTAB_OPTION_tpm2_device
++             CRYPTTAB_OPTION_tpm2_device \
++             CRYPTTAB_OPTION_tpm2_pcrs
      # use $_CRYPTTAB_OPTIONS not $CRYPTTAB_OPTIONS as options values may
      # contain '\054' which is decoded to ',' in the latter
      for x in $_CRYPTTAB_OPTIONS; do
-@@ -162,6 +163,7 @@ crypttab_validate_option() {
+@@ -162,6 +164,8 @@ crypttab_validate_option() {
          submit-from-crypt-cpus) OPTION="submit_from_crypt_cpus";;
          no-read-workqueue) OPTION="no_read_workqueue";;
          no-write-workqueue) OPTION="no_write_workqueue";;
 +	tpm2-device) OPTION="tpm2_device";;
++	tpm2-pcrs) OPTION="tpm2_pcrs";;
      esac
  
      case "$o" in
-@@ -226,6 +228,9 @@ crypttab_validate_option() {
+@@ -226,6 +230,12 @@ crypttab_validate_option() {
                  return 1
              fi
          ;;
 +	tpm2-device)
 +		#validate path or 'auto'
 +	;;
++	tpm2-pcrs)
++		#validate PCRs register
++	;;
          # and now the flags
          verify) ;;
          loud) ;;
-@@ -363,6 +368,8 @@ unlock_mapping() {
+@@ -363,6 +373,8 @@ unlock_mapping() {
          unset -v CRYPTTAB_OPTION_keyslot
      fi
  
@@ -37,12 +42,16 @@
      /sbin/cryptsetup -T1 \
          ${CRYPTTAB_OPTION_header:+--header="$CRYPTTAB_OPTION_header"} \
          ${CRYPTTAB_OPTION_cipher:+--cipher="$CRYPTTAB_OPTION_cipher"} \
-@@ -385,6 +392,10 @@ unlock_mapping() {
+@@ -385,6 +397,14 @@ unlock_mapping() {
          ${CRYPTTAB_OPTION_no_write_workqueue:+--perf-no_write_workqueue} \
          --type="$CRYPTTAB_TYPE" --key-file="$keyfile" \
          open -- "$CRYPTTAB_SOURCE" "$CRYPTTAB_NAME"
 +    else
-+	/lib/systemd/systemd-cryptsetup attach "${CRYPTTAB_NAME}" "${CRYPTTAB_SOURCE}" "${keyfile}" "tpm2-device=${CRYPTTAB_OPTION_tpm2_device}"
++	/lib/systemd/systemd-cryptsetup \
++		attach "${CRYPTTAB_NAME}" "${CRYPTTAB_SOURCE}" \
++		"${keyfile}" \
++		"tpm2-device=${CRYPTTAB_OPTION_tpm2_device}" \
++		${CRYPTTAB_OPTION_tpm2_pcrs:+tpm2-pcrs=$"CRYPTTAB_OPTION_tpm2_pcrs"}
 +    fi
 +
  }
